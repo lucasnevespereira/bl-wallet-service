@@ -11,7 +11,7 @@ const docTemplate = `{
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
         "contact": {},
-        "version": "{{.Version}}"
+        "version": "{{.WalletVersion}}"
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",

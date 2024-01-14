@@ -2,7 +2,6 @@ package services
 
 import (
 	"bl-wallet-service/configs"
-	"bl-wallet-service/internal/cache"
 	"bl-wallet-service/internal/storage"
 	"log"
 )
@@ -24,12 +23,7 @@ func InitServices(config configs.Config) *Services {
 		log.Printf("could not init walletStorage: %v \n", err)
 	}
 
-	transactionCache := cache.NewTransactionCache(cache.TransactionCacheConfig{
-		Host: config.RedisHost,
-		Port: config.RedisPort,
-	})
-
-	walletSvc := NewWalletService(walletStorage, transactionCache)
+	walletSvc := NewWalletService(walletStorage)
 	return &Services{
 		WalletService: walletSvc,
 	}

@@ -42,6 +42,7 @@ func (h *WalletHandler) CreateWallet(c *gin.Context) {
 		})
 		return
 	}
+
 	c.JSON(http.StatusOK, &models.CreateWalletResponse{
 		UserID:  request.UserID,
 		Message: "wallet created",
@@ -85,7 +86,7 @@ func (h *WalletHandler) GetWallet(c *gin.Context) {
 // @Success 200 {object} models.WalletFundsResponse "OK"
 // @Router /users/wallet/add [post]
 func (h *WalletHandler) AddFunds(c *gin.Context) {
-	var request models.WalletFundsRequest
+	var request models.TransactionRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -99,23 +100,7 @@ func (h *WalletHandler) AddFunds(c *gin.Context) {
 		return
 	}
 
-	//idempotencyKey := c.GetHeader("x-idempotency-key")
-	//if len(idempotencyKey) == 0 {
-	//	log.Println("idempotency-key is not present in headers")
-	//}
-
-	//cachedTransaction, err := h.walletService.GetTransactionCache(idempotencyKey)
-	//if err != nil {
-	//	log.Printf("walletService.GetTransactionCache %v \n", err)
-	//} else if cachedTransaction != "" {
-	//	c.JSON(http.StatusOK, &models.WalletFundsResponse{
-	//		UserID:  request.UserID,
-	//		Message: "funds were added",
-	//	})
-	//	return
-	//}
-
-	err := h.walletService.ProcessTransaction(request.UserID, models.CreditTransactionType, request.Amount)
+	err := h.walletService.ProcessTransaction(&request, models.CreditTransactionType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status": http.StatusInternalServerError,
@@ -123,12 +108,6 @@ func (h *WalletHandler) AddFunds(c *gin.Context) {
 		})
 		return
 	}
-
-	//// record transaction
-	//err = h.walletService.SetTransactionCache(idempotencyKey, request.UserID, "add")
-	//if err != nil {
-	//	log.Printf("walletService.SetTransactionCache %v \n", err)
-	//}
 
 	c.JSON(http.StatusOK, &models.WalletFundsResponse{
 		UserID:  request.UserID,
@@ -146,7 +125,7 @@ func (h *WalletHandler) AddFunds(c *gin.Context) {
 // @Success 200 {object} models.WalletFundsResponse "OK"
 // @Router /users/wallet/remove [post]
 func (h *WalletHandler) RemoveFunds(c *gin.Context) {
-	var request models.WalletFundsRequest
+	var request models.TransactionRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -160,24 +139,7 @@ func (h *WalletHandler) RemoveFunds(c *gin.Context) {
 		return
 	}
 
-	//idempotencyKey := c.GetHeader("x-idempotency-key")
-	//if len(idempotencyKey) == 0 {
-	//	log.Println("idempotency-key is not present in headers")
-	//	//TODO: handle where is no key
-	//}
-
-	//cachedTransaction, err := h.walletService.GetTransactionCache(idempotencyKey)
-	//if err != nil {
-	//	log.Printf("walletService.GetTransactionCache %v \n", err)
-	//} else if cachedTransaction != "" {
-	//	c.JSON(http.StatusOK, &models.WalletFundsResponse{
-	//		UserID:  request.UserID,
-	//		Message: "funds were removed",
-	//	})
-	//	return
-	//}
-
-	err := h.walletService.ProcessTransaction(request.UserID, models.DebitTransactionType, request.Amount)
+	err := h.walletService.ProcessTransaction(&request, models.DebitTransactionType)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status": http.StatusInternalServerError,
@@ -186,21 +148,19 @@ func (h *WalletHandler) RemoveFunds(c *gin.Context) {
 		return
 	}
 
-	//// record transaction
-	//err = h.walletService.SetTransactionCache(idempotencyKey, request.UserID, "add")
-	//if err != nil {
-	//	log.Printf("walletService.SetTransactionCache %v \n", err)
-	//}
-
 	c.JSON(http.StatusOK, &models.WalletFundsResponse{
 		UserID:  request.UserID,
 		Message: "funds were removed",
 	})
 }
 
-func validateFundsRequest(request models.WalletFundsRequest) error {
+func validateFundsRequest(request models.TransactionRequest) error {
 	if request.UserID == "" {
 		return errors.New("You should provide a user id")
+	}
+
+	if request.TransactionID == "" {
+		return errors.New("You should provide a transaction id")
 	}
 
 	if request.Amount < 0.0 {

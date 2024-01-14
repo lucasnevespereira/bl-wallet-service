@@ -22,6 +22,7 @@ test-coverage:
 docs:
 	swag init -g cmd/server/main.go
 
+
 run:
 	docker-compose up
 
@@ -30,3 +31,9 @@ build:
 
 stop:
 	docker-compose down
+
+db:
+	docker-compose up database
+
+db-internal-ping:
+	docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' bl-wallet-service-database-1

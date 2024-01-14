@@ -8,7 +8,7 @@ import (
 
 func Test_validateFundsRequest(t *testing.T) {
 	type args struct {
-		request models.WalletFundsRequest
+		request models.TransactionRequest
 	}
 	testCases := []struct {
 		name       string
@@ -18,7 +18,7 @@ func Test_validateFundsRequest(t *testing.T) {
 	}{
 		{
 			name: "Request with empty user id",
-			args: args{request: models.WalletFundsRequest{
+			args: args{request: models.TransactionRequest{
 				UserID: "",
 				Amount: 0,
 			}},
@@ -27,7 +27,7 @@ func Test_validateFundsRequest(t *testing.T) {
 		},
 		{
 			name: "Request with negative amount",
-			args: args{request: models.WalletFundsRequest{
+			args: args{request: models.TransactionRequest{
 				UserID: "1",
 				Amount: -1,
 			}},

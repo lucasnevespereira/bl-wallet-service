@@ -9,6 +9,7 @@ import (
 
 func Setup(router *gin.Engine, services *services.Services) {
 	router.Use(cors.Default())
+
 	router.GET("/health", handlers.Health)
 	router.NoRoute(handlers.NoRoute)
 

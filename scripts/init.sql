@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS wallets
     id       VARCHAR(255) PRIMARY KEY,
     user_id  VARCHAR(255) REFERENCES users (id) ON DELETE CASCADE,
     balance  DECIMAL(10, 2) DEFAULT 0.00,
-    currency VARCHAR(3)     DEFAULT 'EUR'
+    currency VARCHAR(3)     DEFAULT 'EUR',
+    wallet_version  INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS transactions
@@ -33,6 +34,6 @@ VALUES ('1', 'Jane'),
        ('3', 'Peter');
 
 -- INSERT INTO wallets (user_id, balance, currency) VALUES
---                                                      (1, 100.00, 'USD'),
---                                                      (2, 50.00, 'EUR'),
---                                                      (3, 200.00, 'GBP');
+--                                                      (1, 100.00, 'USD', 0),
+--                                                      (2, 50.00, 'EUR', 0),
+--                                                      (3, 200.00, 'GBP', 0);

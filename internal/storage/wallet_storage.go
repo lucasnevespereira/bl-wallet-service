@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"log"
 	"time"
 )
@@ -20,9 +21,10 @@ type IWalletStorage interface {
 }
 
 type RowWallet struct {
-	ID      string
-	UserID  string
-	Balance float64
+	ID            string
+	UserID        string
+	Balance       float64
+	WalletVersion int
 }
 
 func (RowWallet) TableName() string {
@@ -91,10 +93,14 @@ func NewWalletStorage(config WalletStorageConfig) (*WalletStorage, error) {
 }
 
 func (s *WalletStorage) CreateWallet(wallet *RowWallet) error {
-	result := s.db.Create(wallet)
-	if result.Error != nil {
-		return result.Error
+	log.Printf("Wallet to insert: %v \n", wallet)
+	err := s.db.Create(&wallet).Error
+	if err != nil {
+		log.Println(err)
+		return err
 	}
+
+	log.Println("Wallet created in database")
 	return nil
 }
 
@@ -109,32 +115,30 @@ func (s *WalletStorage) GetWalletByUserID(userId string) (*RowWallet, error) {
 
 func (s *WalletStorage) GetTransaction(transactionID string) (*RowTransaction, error) {
 	var rowTransaction *RowTransaction
-	result := s.db.First(&rowTransaction, "id = ?", transactionID)
-	if result.Error != nil {
-		return nil, result.Error
+	err := s.db.First(&rowTransaction, "id = ?", transactionID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, nil
+	} else if err != nil {
+		return nil, err
 	}
 	return rowTransaction, nil
 }
 
 func (s *WalletStorage) CreateTransaction(transaction *RowTransaction) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
-		return s.db.Model(&RowTransaction{}).Create(&transaction).Error
-	})
-}
+		log.Printf("inserting transaction: %v \n", transaction)
+		err := tx.Model(&RowTransaction{}).Create(&transaction).Error
+		if err != nil {
+			return err
+		}
 
-func (s *WalletStorage) AddFunds(userID string, amount float64) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		return s.db.Model(&RowWallet{}).Where("user_id = ?", userID).Update("balance", gorm.Expr("balance + ?", amount)).Error
-	})
-}
-
-func (s *WalletStorage) RemoveFunds(userID string, amount float64) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		return s.db.Model(&RowWallet{}).Where("user_id = ?", userID).Update("balance", gorm.Expr("balance - ?", amount)).Error
+		log.Printf("transaction inserted: %v \n", transaction)
+		return nil
 	})
 }
 
 func (s *WalletStorage) UpdateBalance(wallet *RowWallet, transactionID string) error {
+	log.Println("updating balance")
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		now := time.Now().Format(time.RFC3339Nano)
 		var updatedTransaction = RowTransaction{
@@ -152,9 +156,21 @@ func (s *WalletStorage) UpdateBalance(wallet *RowWallet, transactionID string) e
 			return errors.New(models.TRANSACTION_ALREADY_PROCESSED_ERROR)
 		}
 
+		var isolatedWallet *RowWallet
+		err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? and wallet_version = ?", wallet.ID, wallet.WalletVersion).First(&isolatedWallet).Error
+		if err != nil {
+			log.Printf("tx.Clauses locking err: %v \n", err)
+			return err
+		}
+
 		// check transaction type
 		if transaction.TransactionType == models.CreditTransactionType {
-			err := s.AddFunds(transaction.UserID, transaction.Amount)
+			log.Println("crediting funds")
+			updateValues := map[string]interface{}{
+				"balance":        isolatedWallet.Balance + transaction.Amount,
+				"wallet_version": isolatedWallet.WalletVersion + 1,
+			}
+			err := tx.Model(&RowWallet{}).Where("user_id = ?", isolatedWallet.UserID).Updates(updateValues).Error
 			if err != nil {
 				updatedTransaction.Status = models.FailedTransactionStatus
 				err := s.db.Model(&RowTransaction{}).Where("id = ?", transaction.ID).Updates(updatedTransaction).Error
@@ -163,9 +179,10 @@ func (s *WalletStorage) UpdateBalance(wallet *RowWallet, transactionID string) e
 				}
 				return err
 			}
-
+			log.Println("funds credited")
 		} else if transaction.TransactionType == models.DebitTransactionType {
 			if wallet.Balance < transaction.Amount {
+				log.Println("debiting funds")
 				updatedTransaction.Status = models.FailedTransactionStatus
 				err := s.db.Model(&RowTransaction{}).Where("id = ?", transaction.ID).Updates(updatedTransaction).Error
 				if err != nil {
@@ -174,7 +191,11 @@ func (s *WalletStorage) UpdateBalance(wallet *RowWallet, transactionID string) e
 				return errors.New(models.INSUFFICIENT_FUNDS_ERROR)
 			}
 
-			err := s.RemoveFunds(transaction.UserID, transaction.Amount)
+			updateValues := map[string]interface{}{
+				"balance":        isolatedWallet.Balance - transaction.Amount,
+				"wallet_version": isolatedWallet.WalletVersion + 1,
+			}
+			err := tx.Model(&RowWallet{}).Where("user_id = ?", isolatedWallet.UserID).Updates(updateValues).Error
 			if err != nil {
 				updatedTransaction.Status = models.FailedTransactionStatus
 				err := s.db.Model(&RowTransaction{}).Where("id = ?", transaction.ID).Updates(updatedTransaction).Error
@@ -183,10 +204,16 @@ func (s *WalletStorage) UpdateBalance(wallet *RowWallet, transactionID string) e
 				}
 				return err
 			}
-
+			log.Println("funds debited")
 		}
 
 		updatedTransaction.Status = models.SuccessTransactionStatus
-		return s.db.Model(&RowTransaction{}).Where("id = ?", transaction.ID).Updates(updatedTransaction).Error
+		err = s.db.Model(&RowTransaction{}).Where("id = ?", transaction.ID).Updates(&updatedTransaction).Error
+		if err != nil {
+			return err
+		}
+
+		log.Println("balance updated")
+		return nil
 	})
 }
