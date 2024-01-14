@@ -1,0 +1,143 @@
+definitions:
+  models.CreateWalletRequest:
+    properties:
+      userID:
+        type: string
+    type: object
+  models.CreateWalletResponse:
+    properties:
+      message:
+        type: string
+      userID:
+        type: string
+    type: object
+  models.Wallet:
+    properties:
+      balance:
+        type: number
+      id:
+        type: string
+      userID:
+        type: string
+    type: object
+  models.WalletFundsRequest:
+    properties:
+      amount:
+        type: number
+      userID:
+        type: string
+    type: object
+  models.WalletFundsResponse:
+    properties:
+      message:
+        type: string
+      userID:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /health:
+    get:
+      consumes:
+      - application/json
+      description: Check the health status of the service.
+      operationId: health-check
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+      summary: Health Check
+  /users/{id}/wallet:
+    get:
+      consumes:
+      - application/json
+      description: Get wallet details for the specified user ID.
+      operationId: get-wallet
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Wallet'
+      summary: Get Wallet
+  /users/wallet:
+    post:
+      consumes:
+      - application/json
+      description: Create a wallet for the specified user ID.
+      operationId: create-wallet
+      parameters:
+      - description: Create Wallet Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateWalletRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CreateWalletResponse'
+      summary: Create a Wallet
+  /users/wallet/add:
+    post:
+      consumes:
+      - application/json
+      description: Add funds to the wallet for the specified user ID.
+      operationId: add-funds
+      parameters:
+      - description: Wallet Funds Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.WalletFundsRequest'
+      - description: Idempotency Key
+        in: header
+        name: x-idempotency-key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.WalletFundsResponse'
+      summary: Add Funds to Wallet
+  /users/wallet/remove:
+    post:
+      consumes:
+      - application/json
+      description: Remove funds from the wallet for the specified user ID.
+      operationId: remove-funds
+      parameters:
+      - description: Wallet Funds Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.WalletFundsRequest'
+      - description: Idempotency Key
+        in: header
+        name: x-idempotency-key
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.WalletFundsResponse'
+      summary: Remove Funds from Wallet
+swagger: "2.0"

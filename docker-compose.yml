@@ -1,0 +1,39 @@
+version: "3.9"
+services:
+  server:
+    build: .
+    restart: always
+    ports:
+      - "9000:9000"
+    env_file: .env
+    depends_on:
+      database:
+        condition: service_started
+    networks:
+      - bl-wallet-network
+
+  database:
+    image: postgres:latest
+    restart: always
+    env_file: .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - db:/var/lib/postgresql/data
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - bl-wallet-network
+
+  redis:
+    image: "redis:latest"
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - bl-wallet-network
+
+volumes:
+  db:
+
+networks:
+  bl-wallet-network:
