@@ -11,7 +11,7 @@ const docTemplate = `{
         "description": "{{escape .Description}}",
         "title": "{{.Title}}",
         "contact": {},
-        "version": "{{.WalletVersion}}"
+        "version": "{{.Version}}"
     },
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
@@ -79,26 +79,20 @@ const docTemplate = `{
                 "operationId": "add-funds",
                 "parameters": [
                     {
-                        "description": "Wallet Funds Request",
+                        "description": "Transaction Request",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.WalletFundsRequest"
+                            "$ref": "#/definitions/models.TransactionRequest"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Idempotency Key",
-                        "name": "x-idempotency-key",
-                        "in": "header"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.WalletFundsResponse"
+                            "$ref": "#/definitions/models.TransactionResponse"
                         }
                     }
                 }
@@ -117,26 +111,20 @@ const docTemplate = `{
                 "operationId": "remove-funds",
                 "parameters": [
                     {
-                        "description": "Wallet Funds Request",
+                        "description": "Transaction Request",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/models.WalletFundsRequest"
+                            "$ref": "#/definitions/models.TransactionRequest"
                         }
-                    },
-                    {
-                        "type": "string",
-                        "description": "Idempotency Key",
-                        "name": "x-idempotency-key",
-                        "in": "header"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/models.WalletFundsResponse"
+                            "$ref": "#/definitions/models.TransactionResponse"
                         }
                     }
                 }
@@ -193,6 +181,34 @@ const docTemplate = `{
                 }
             }
         },
+        "models.TransactionRequest": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "type": "number"
+                },
+                "transactionID": {
+                    "type": "string"
+                },
+                "transactionType": {
+                    "type": "string"
+                },
+                "userID": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.TransactionResponse": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string"
+                },
+                "userID": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Wallet": {
             "type": "object",
             "properties": {
@@ -204,28 +220,9 @@ const docTemplate = `{
                 },
                 "userID": {
                     "type": "string"
-                }
-            }
-        },
-        "models.WalletFundsRequest": {
-            "type": "object",
-            "properties": {
-                "amount": {
-                    "type": "number"
                 },
-                "userID": {
-                    "type": "string"
-                }
-            }
-        },
-        "models.WalletFundsResponse": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string"
-                },
-                "userID": {
-                    "type": "string"
+                "walletVersion": {
+                    "type": "integer"
                 }
             }
         }

@@ -8,19 +8,17 @@ import (
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"log"
-	"sync"
 	"time"
 )
 
 type IWalletService interface {
 	Create(userID string) error
 	GetByUserID(userID string) (*models.Wallet, error)
-	ProcessTransaction(request *models.TransactionRequest, transactionType string) error
+	ProcessTransaction(request *models.TransactionRequest) error
 }
 
 type WalletService struct {
 	storage storage.IWalletStorage
-	mu      sync.Mutex
 }
 
 func NewWalletService(walletStorage storage.IWalletStorage) *WalletService {
@@ -66,7 +64,8 @@ func (s *WalletService) Create(userID string) error {
 	}
 	return nil
 }
-func (s *WalletService) ProcessTransaction(request *models.TransactionRequest, transactionType string) error {
+
+func (s *WalletService) ProcessTransaction(request *models.TransactionRequest) error {
 	fmt.Printf("Processing transaction of user %s \n", request.UserID)
 
 	// check if transaction exists
@@ -74,9 +73,8 @@ func (s *WalletService) ProcessTransaction(request *models.TransactionRequest, t
 	if err != nil {
 		return err
 	}
-
 	if existingTransaction != nil {
-		return errors.New(models.TRANSACTION_ALREADY_PROCESSED_ERROR)
+		return models.ErrTransactionAlreadyProcessed
 	}
 
 	userWallet, err := s.storage.GetWalletByUserID(request.UserID)
@@ -84,24 +82,29 @@ func (s *WalletService) ProcessTransaction(request *models.TransactionRequest, t
 		return err
 	}
 
-	now := time.Now()
-	err = s.storage.CreateTransaction(&storage.RowTransaction{
-		ID:              request.TransactionID,
-		UserID:          request.UserID,
-		WalletID:        userWallet.ID,
-		Amount:          request.Amount,
-		TransactionType: transactionType,
-		Status:          models.PendingTransactionStatus,
-		CreatedAt:       now.Format(time.RFC3339Nano),
-		UpdatedAt:       "",
-	})
-	if err != nil {
-		return err
+	if userWallet == nil {
+		return models.ErrUserWalletNotFound
 	}
 
 	// update wallet balance
-	err = s.storage.UpdateBalance(userWallet, request.TransactionID)
-	if err != nil {
+	err = s.storage.UpdateBalance(userWallet, request)
+	if err != nil && errors.Is(err, models.ErrInsufficientFunds) {
+		// record transaction as failed
+		now := time.Now().Format(time.RFC3339Nano)
+		err = s.storage.CreateTransaction(&storage.RowTransaction{
+			ID:              request.TransactionID,
+			UserID:          request.UserID,
+			WalletID:        userWallet.ID,
+			Amount:          request.Amount,
+			TransactionType: request.TransactionType,
+			Status:          models.FailedTransactionStatus,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		})
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
 		return err
 	}
 

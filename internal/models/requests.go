@@ -5,7 +5,8 @@ type CreateWalletRequest struct {
 }
 
 type TransactionRequest struct {
-	TransactionID string  `json:"transactionID"`
-	UserID        string  `json:"userID"`
-	Amount        float64 `json:"amount"`
+	TransactionID   string  `json:"transactionID"`
+	UserID          string  `json:"userID"`
+	Amount          float64 `json:"amount"`
+	TransactionType string  `json:"transactionType"`
 }

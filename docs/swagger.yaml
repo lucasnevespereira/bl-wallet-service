@@ -11,6 +11,24 @@ definitions:
       userID:
         type: string
     type: object
+  models.TransactionRequest:
+    properties:
+      amount:
+        type: number
+      transactionID:
+        type: string
+      transactionType:
+        type: string
+      userID:
+        type: string
+    type: object
+  models.TransactionResponse:
+    properties:
+      message:
+        type: string
+      userID:
+        type: string
+    type: object
   models.Wallet:
     properties:
       balance:
@@ -19,20 +37,8 @@ definitions:
         type: string
       userID:
         type: string
-    type: object
-  models.WalletFundsRequest:
-    properties:
-      amount:
-        type: number
-      userID:
-        type: string
-    type: object
-  models.WalletFundsResponse:
-    properties:
-      message:
-        type: string
-      userID:
-        type: string
+      walletVersion:
+        type: integer
     type: object
 info:
   contact: {}
@@ -97,23 +103,19 @@ paths:
       description: Add funds to the wallet for the specified user ID.
       operationId: add-funds
       parameters:
-      - description: Wallet Funds Request
+      - description: Transaction Request
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.WalletFundsRequest'
-      - description: Idempotency Key
-        in: header
-        name: x-idempotency-key
-        type: string
+          $ref: '#/definitions/models.TransactionRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.WalletFundsResponse'
+            $ref: '#/definitions/models.TransactionResponse'
       summary: Add Funds to Wallet
   /users/wallet/remove:
     post:
@@ -122,22 +124,18 @@ paths:
       description: Remove funds from the wallet for the specified user ID.
       operationId: remove-funds
       parameters:
-      - description: Wallet Funds Request
+      - description: Transaction Request
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/models.WalletFundsRequest'
-      - description: Idempotency Key
-        in: header
-        name: x-idempotency-key
-        type: string
+          $ref: '#/definitions/models.TransactionRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.WalletFundsResponse'
+            $ref: '#/definitions/models.TransactionResponse'
       summary: Remove Funds from Wallet
 swagger: "2.0"

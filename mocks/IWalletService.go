@@ -53,13 +53,13 @@ func (_m *IWalletService) GetByUserID(userID string) (*models.Wallet, error) {
 	return r0, r1
 }
 
-// ProcessTransaction provides a mock function with given fields: userID, transactionType, amount
-func (_m *IWalletService) ProcessTransaction(userID string, transactionType string, amount float64) error {
-	ret := _m.Called(userID, transactionType, amount)
+// ProcessTransaction provides a mock function with given fields: request
+func (_m *IWalletService) ProcessTransaction(request *models.TransactionRequest) error {
+	ret := _m.Called(request)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, string, float64) error); ok {
-		r0 = rf(userID, transactionType, amount)
+	if rf, ok := ret.Get(0).(func(*models.TransactionRequest) error); ok {
+		r0 = rf(request)
 	} else {
 		r0 = ret.Error(0)
 	}

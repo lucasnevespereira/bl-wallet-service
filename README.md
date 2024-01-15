@@ -13,11 +13,11 @@ This service provides the following features
 
 Also, the service inits with some users already in database, you can use their ids to do wallet actions.
 
-| ID  | Name  |
-|-----|:-----:|
-| 1   | Jane  |
-| 2   | John  |
-| 3   | Peter |
+| ID | Name  |
+|----|:-----:|
+| 1  | Jane  |
+| 2  | John  |
+| 3  | Peter |
 
 ## Usage
 
@@ -56,7 +56,7 @@ Run the following command:
 make test
 ```
 
-### API Documentation
+### Service Documentation
 
 Once the API is running, you can access the API documentation at http://localhost:9000/swagger/index.html.
 
@@ -102,9 +102,10 @@ curl --location 'http://localhost:9000/users/1/wallet'
 
 ```json
 {
-  "id": "25a08945-1caf-4734-bd12-bb6cf66dae52",
+  "id": "495f5c82-af5f-46ca-ba86-f5d950b8b759",
   "userID": "1",
-  "balance": 15.0
+  "balance": 10,
+  "walletVersion": 1
 }
 ```
 
@@ -151,21 +152,22 @@ curl --location 'http://localhost:9000/users/wallet' \
 
 ```shell
 curl --location 'http://localhost:9000/users/wallet/add' \
-  --header 'x-idempotency-key: 1234' \
-  --header 'Content-Type: application/json' \
-  --data '{
+--header 'x-idempotency-key: 1235' \
+--header 'Content-Type: application/json' \
+--data '{
+    "transactionID": "1234568676778",
     "userID": "1",
     "amount": 20.0
 }'
-
 ```
 
 **Example Request Body:**
 
 ```json
 {
+  "transactionID": "1234568676778",
   "userID": "1",
-  "amount": 10.0
+  "amount": 20.0
 }
 ```
 
@@ -188,11 +190,11 @@ curl --location 'http://localhost:9000/users/wallet/add' \
 
 ```shell
 curl --location 'http://localhost:9000/users/wallet/remove' \
---header 'x-idempotency-key: 1234' \
 --header 'Content-Type: application/json' \
 --data '{
+    "transactionID": "34423413253",
     "userID": "1",
-    "amount": 10.0
+    "amount": 5.0
 }'
 ```
 
@@ -200,8 +202,9 @@ curl --location 'http://localhost:9000/users/wallet/remove' \
 
 ```json
 {
+  "transactionID": "34423413253",
   "userID": "1",
-  "amount": 10.0
+  "amount": 5.0
 }
 ```
 

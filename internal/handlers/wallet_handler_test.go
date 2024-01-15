@@ -10,37 +10,49 @@ func Test_validateFundsRequest(t *testing.T) {
 	type args struct {
 		request models.TransactionRequest
 	}
-	testCases := []struct {
-		name       string
-		args       args
-		wantErr    bool
-		errMessage string
+	tests := []struct {
+		name        string
+		args        args
+		wantErr     bool
+		expectedErr error
 	}{
 		{
 			name: "Request with empty user id",
 			args: args{request: models.TransactionRequest{
-				UserID: "",
-				Amount: 0,
+				TransactionID: "transaction_id",
+				UserID:        "",
+				Amount:        20.0,
 			}},
-			wantErr:    true,
-			errMessage: "You should provide a user id",
+			wantErr:     true,
+			expectedErr: models.ErrEmptyUserID,
+		},
+		{
+			name: "Request with empty transaction id",
+			args: args{request: models.TransactionRequest{
+				TransactionID: "",
+				UserID:        "2",
+				Amount:        10.0,
+			}},
+			wantErr:     true,
+			expectedErr: models.ErrEmptyTransactionID,
 		},
 		{
 			name: "Request with negative amount",
 			args: args{request: models.TransactionRequest{
-				UserID: "1",
-				Amount: -1,
+				TransactionID: "transaction_id",
+				UserID:        "1",
+				Amount:        -1,
 			}},
-			wantErr:    true,
-			errMessage: "Amount should not be negative",
+			wantErr:     true,
+			expectedErr: models.ErrAmountNegative,
 		},
 	}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			err := validateFundsRequest(tc.args.request)
-			if tc.wantErr {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateTransactionRequest(tt.args.request)
+			if tt.wantErr {
 				assert.Error(t, err)
-				assert.Contains(t, err.Error(), tc.errMessage)
+				assert.Contains(t, err.Error(), tt.expectedErr.Error())
 			} else {
 				assert.NoError(t, err)
 			}

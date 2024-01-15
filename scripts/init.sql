@@ -6,11 +6,11 @@ CREATE TABLE IF NOT EXISTS users
 
 CREATE TABLE IF NOT EXISTS wallets
 (
-    id       VARCHAR(255) PRIMARY KEY,
-    user_id  VARCHAR(255) REFERENCES users (id) ON DELETE CASCADE,
-    balance  DECIMAL(10, 2) DEFAULT 0.00,
-    currency VARCHAR(3)     DEFAULT 'EUR',
-    wallet_version  INTEGER DEFAULT 0
+    id             VARCHAR(255) PRIMARY KEY,
+    user_id        VARCHAR(255) REFERENCES users (id) ON DELETE CASCADE,
+    balance        DECIMAL(10, 2) DEFAULT 0.00,
+    currency       VARCHAR(3)     DEFAULT 'EUR',
+    wallet_version INTEGER        DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS transactions
@@ -25,7 +25,10 @@ CREATE TABLE IF NOT EXISTS transactions
     updated_at       VARCHAR(255)
 );
 
--- //TODO: CREATE INDEX
+CREATE INDEX wallet_id_idx ON wallets (id);
+CREATE INDEX wallet_user_idx ON wallets (user_id);
+CREATE INDEX transaction_id_idx ON transactions (id);
+
 
 -- Insert sample users
 INSERT INTO users (id, name)

@@ -5,7 +5,6 @@ import (
 	"bl-wallet-service/internal/services"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
 	"net/http"
 )
 
@@ -81,9 +80,8 @@ func (h *WalletHandler) GetWallet(c *gin.Context) {
 // @ID add-funds
 // @Accept json
 // @Produce json
-// @Param request body models.WalletFundsRequest true "Wallet Funds Request"
-// @Param x-idempotency-key header string false "Idempotency Key"
-// @Success 200 {object} models.WalletFundsResponse "OK"
+// @Param request body models.TransactionRequest true "Transaction Request"
+// @Success 200 {object} models.TransactionResponse "OK"
 // @Router /users/wallet/add [post]
 func (h *WalletHandler) AddFunds(c *gin.Context) {
 	var request models.TransactionRequest
@@ -92,7 +90,7 @@ func (h *WalletHandler) AddFunds(c *gin.Context) {
 		return
 	}
 
-	if err := validateFundsRequest(request); err != nil {
+	if err := validateTransactionRequest(request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status": http.StatusBadRequest,
 			"error":  err.Error(),
@@ -100,7 +98,9 @@ func (h *WalletHandler) AddFunds(c *gin.Context) {
 		return
 	}
 
-	err := h.walletService.ProcessTransaction(&request, models.CreditTransactionType)
+	request.TransactionType = models.CreditTransactionType
+
+	err := h.walletService.ProcessTransaction(&request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status": http.StatusInternalServerError,
@@ -109,7 +109,7 @@ func (h *WalletHandler) AddFunds(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, &models.WalletFundsResponse{
+	c.JSON(http.StatusOK, &models.TransactionResponse{
 		UserID:  request.UserID,
 		Message: "funds were added",
 	})
@@ -120,9 +120,8 @@ func (h *WalletHandler) AddFunds(c *gin.Context) {
 // @ID remove-funds
 // @Accept json
 // @Produce json
-// @Param request body models.WalletFundsRequest true "Wallet Funds Request"
-// @Param x-idempotency-key header string false "Idempotency Key"
-// @Success 200 {object} models.WalletFundsResponse "OK"
+// @Param request body models.TransactionRequest true "Transaction Request"
+// @Success 200 {object} models.TransactionResponse "OK"
 // @Router /users/wallet/remove [post]
 func (h *WalletHandler) RemoveFunds(c *gin.Context) {
 	var request models.TransactionRequest
@@ -131,15 +130,15 @@ func (h *WalletHandler) RemoveFunds(c *gin.Context) {
 		return
 	}
 
-	if err := validateFundsRequest(request); err != nil {
+	if err := validateTransactionRequest(request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"status": http.StatusBadRequest,
 			"error":  err.Error(),
 		})
 		return
 	}
-
-	err := h.walletService.ProcessTransaction(&request, models.DebitTransactionType)
+	request.TransactionType = models.DebitTransactionType
+	err := h.walletService.ProcessTransaction(&request)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"status": http.StatusInternalServerError,
@@ -148,23 +147,23 @@ func (h *WalletHandler) RemoveFunds(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, &models.WalletFundsResponse{
+	c.JSON(http.StatusOK, &models.TransactionResponse{
 		UserID:  request.UserID,
 		Message: "funds were removed",
 	})
 }
 
-func validateFundsRequest(request models.TransactionRequest) error {
+func validateTransactionRequest(request models.TransactionRequest) error {
 	if request.UserID == "" {
-		return errors.New("You should provide a user id")
+		return models.ErrEmptyUserID
 	}
 
 	if request.TransactionID == "" {
-		return errors.New("You should provide a transaction id")
+		return models.ErrEmptyTransactionID
 	}
 
 	if request.Amount < 0.0 {
-		return errors.New("Amount should not be negative")
+		return models.ErrAmountNegative
 	}
 
 	return nil

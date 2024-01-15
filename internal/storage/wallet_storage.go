@@ -15,7 +15,7 @@ type IWalletStorage interface {
 	AutoMigrate() error
 	CreateWallet(wallet *RowWallet) error
 	GetWalletByUserID(userID string) (*RowWallet, error)
-	UpdateBalance(wallet *RowWallet, transactionID string) error
+	UpdateBalance(wallet *RowWallet, transaction *models.TransactionRequest) error
 	GetTransaction(transactionID string) (*RowTransaction, error)
 	CreateTransaction(transaction *RowTransaction) error
 }
@@ -47,11 +47,11 @@ func (RowTransaction) TableName() string {
 }
 
 type WalletStorage struct {
-	db *gorm.DB
+	DB *gorm.DB
 }
 
 func (s *WalletStorage) AutoMigrate() error {
-	return s.db.AutoMigrate(&RowWallet{})
+	return s.DB.AutoMigrate(&RowWallet{})
 }
 
 type WalletStorageConfig struct {
@@ -89,12 +89,15 @@ func NewWalletStorage(config WalletStorageConfig) (*WalletStorage, error) {
 	}
 
 	log.Println("Wallet Storage started")
-	return &WalletStorage{db: database}, nil
+	return &WalletStorage{DB: database}, nil
 }
 
 func (s *WalletStorage) CreateWallet(wallet *RowWallet) error {
 	log.Printf("Wallet to insert: %v \n", wallet)
-	err := s.db.Create(&wallet).Error
+	if s.DB == nil {
+		log.Println("database nil")
+	}
+	err := s.DB.Create(&wallet).Error
 	if err != nil {
 		log.Println(err)
 		return err
@@ -106,7 +109,7 @@ func (s *WalletStorage) CreateWallet(wallet *RowWallet) error {
 
 func (s *WalletStorage) GetWalletByUserID(userId string) (*RowWallet, error) {
 	var rowWallet *RowWallet
-	result := s.db.First(&rowWallet, "user_id = ?", userId)
+	result := s.DB.First(&rowWallet, "user_id = ?", userId)
 	if result.Error != nil {
 		return nil, result.Error
 	}
@@ -115,7 +118,7 @@ func (s *WalletStorage) GetWalletByUserID(userId string) (*RowWallet, error) {
 
 func (s *WalletStorage) GetTransaction(transactionID string) (*RowTransaction, error) {
 	var rowTransaction *RowTransaction
-	err := s.db.First(&rowTransaction, "id = ?", transactionID).Error
+	err := s.DB.First(&rowTransaction, "id = ?", transactionID).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	} else if err != nil {
@@ -125,7 +128,7 @@ func (s *WalletStorage) GetTransaction(transactionID string) (*RowTransaction, e
 }
 
 func (s *WalletStorage) CreateTransaction(transaction *RowTransaction) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
 		log.Printf("inserting transaction: %v \n", transaction)
 		err := tx.Model(&RowTransaction{}).Create(&transaction).Error
 		if err != nil {
@@ -137,83 +140,52 @@ func (s *WalletStorage) CreateTransaction(transaction *RowTransaction) error {
 	})
 }
 
-func (s *WalletStorage) UpdateBalance(wallet *RowWallet, transactionID string) error {
-	log.Println("updating balance")
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		now := time.Now().Format(time.RFC3339Nano)
-		var updatedTransaction = RowTransaction{
-			UpdatedAt: now,
-		}
+func (s *WalletStorage) UpdateBalance(wallet *RowWallet, transaction *models.TransactionRequest) error {
+	log.Println("updating wallet balance")
+	return s.DB.Transaction(func(tx *gorm.DB) error {
 
-		//get transaction by id
-		transaction, err := s.GetTransaction(transactionID)
-		if err != nil {
-			return err
-		}
-
-		// check if transaction is pending
-		if transaction.Status != models.PendingTransactionStatus {
-			return errors.New(models.TRANSACTION_ALREADY_PROCESSED_ERROR)
-		}
-
+		// locking wallet
 		var isolatedWallet *RowWallet
-		err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? and wallet_version = ?", wallet.ID, wallet.WalletVersion).First(&isolatedWallet).Error
+		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? and wallet_version = ?", wallet.ID, wallet.WalletVersion).Take(&isolatedWallet).Error
 		if err != nil {
 			log.Printf("tx.Clauses locking err: %v \n", err)
 			return err
 		}
 
+		newBalance := isolatedWallet.Balance
+
 		// check transaction type
 		if transaction.TransactionType == models.CreditTransactionType {
-			log.Println("crediting funds")
-			updateValues := map[string]interface{}{
-				"balance":        isolatedWallet.Balance + transaction.Amount,
-				"wallet_version": isolatedWallet.WalletVersion + 1,
-			}
-			err := tx.Model(&RowWallet{}).Where("user_id = ?", isolatedWallet.UserID).Updates(updateValues).Error
-			if err != nil {
-				updatedTransaction.Status = models.FailedTransactionStatus
-				err := s.db.Model(&RowTransaction{}).Where("id = ?", transaction.ID).Updates(updatedTransaction).Error
-				if err != nil {
-					return err
-				}
-				return err
-			}
-			log.Println("funds credited")
+			newBalance += transaction.Amount
 		} else if transaction.TransactionType == models.DebitTransactionType {
 			if wallet.Balance < transaction.Amount {
-				log.Println("debiting funds")
-				updatedTransaction.Status = models.FailedTransactionStatus
-				err := s.db.Model(&RowTransaction{}).Where("id = ?", transaction.ID).Updates(updatedTransaction).Error
-				if err != nil {
-					return err
-				}
-				return errors.New(models.INSUFFICIENT_FUNDS_ERROR)
+				return models.ErrInsufficientFunds
 			}
-
-			updateValues := map[string]interface{}{
-				"balance":        isolatedWallet.Balance - transaction.Amount,
-				"wallet_version": isolatedWallet.WalletVersion + 1,
-			}
-			err := tx.Model(&RowWallet{}).Where("user_id = ?", isolatedWallet.UserID).Updates(updateValues).Error
-			if err != nil {
-				updatedTransaction.Status = models.FailedTransactionStatus
-				err := s.db.Model(&RowTransaction{}).Where("id = ?", transaction.ID).Updates(updatedTransaction).Error
-				if err != nil {
-					return err
-				}
-				return err
-			}
-			log.Println("funds debited")
+			newBalance -= transaction.Amount
 		}
 
-		updatedTransaction.Status = models.SuccessTransactionStatus
-		err = s.db.Model(&RowTransaction{}).Where("id = ?", transaction.ID).Updates(&updatedTransaction).Error
+		newWalletVersion := isolatedWallet.WalletVersion + 1
+		if err := tx.Model(&isolatedWallet).Updates(RowWallet{Balance: newBalance, WalletVersion: newWalletVersion}).Error; err != nil {
+			return err
+		}
+
+		now := time.Now().Format(time.RFC3339Nano)
+		transactionRow := RowTransaction{
+			ID:              transaction.TransactionID,
+			UserID:          transaction.UserID,
+			WalletID:        isolatedWallet.ID,
+			Amount:          transaction.Amount,
+			TransactionType: transaction.TransactionType,
+			Status:          models.SuccessTransactionStatus,
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		err = tx.Create(&transactionRow).Error
 		if err != nil {
 			return err
 		}
 
-		log.Println("balance updated")
+		log.Println("wallet balance updated")
 		return nil
 	})
 }

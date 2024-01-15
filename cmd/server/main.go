@@ -24,7 +24,7 @@ func main() {
 	svcs := services.InitServices(config)
 	router.Setup(r, svcs)
 
-	url := ginSwagger.URL(fmt.Sprintf("%s:%d/swagger/doc.json", "http://localhost", config.Port))
+	url := ginSwagger.URL(fmt.Sprintf("%s:%d/swagger/doc.json", config.SwaggerHost, config.Port))
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler, url))
 
 	// https://gin-gonic.com/docs/examples/graceful-restart-or-stop/

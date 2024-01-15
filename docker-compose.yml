@@ -8,7 +8,7 @@ services:
     env_file: .env
     depends_on:
       database:
-        condition: service_started
+        condition: service_healthy
     networks:
       - bl-wallet-network
 
@@ -21,6 +21,11 @@ services:
     volumes:
       - db:/var/lib/postgresql/data
       - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-q", "-d", "${POSTGRES_DB}", "-U", "${POSTGRES_USER}" ]
+      interval: 5s
+      timeout: 10s
+      retries: 5
     networks:
       - bl-wallet-network
 

@@ -3,16 +3,17 @@ package configs
 import "github.com/spf13/viper"
 
 type Config struct {
-	Env        string
-	Port       int
-	DbHost     string
-	DbPort     int
-	DbUser     string
-	DbPassword string
-	DbName     string
-	DbSsl      string
-	RedisHost  string
-	RedisPort  int
+	Env         string
+	Port        int
+	DbHost      string
+	DbPort      int
+	DbUser      string
+	DbPassword  string
+	DbName      string
+	DbSsl       string
+	RedisHost   string
+	RedisPort   int
+	SwaggerHost string
 }
 
 func Load() Config {
@@ -29,5 +30,6 @@ func Load() Config {
 	conf.DbSsl = viper.GetString("POSTGRES_SSL")
 	conf.RedisHost = viper.GetString("REDIS_HOST")
 	conf.RedisPort = viper.GetInt("REDIS_PORT")
+	conf.SwaggerHost = viper.GetString("SWAGGER_HOST")
 	return conf
 }
