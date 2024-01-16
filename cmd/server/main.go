@@ -34,24 +34,20 @@ func main() {
 	}
 
 	go func() {
-		// service connections
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %s\n", err)
 		}
 	}()
 
-	// Use a channel to wait for the quit signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
 	log.Println("Shutting down gracefully...")
 
-	// Create a context with a timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Attempt to gracefully shut down the server
 	if err := server.Shutdown(ctx); err != nil {
 		log.Fatalf("Server shutdown error: %v\n", err)
 	}

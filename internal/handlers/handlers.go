@@ -5,13 +5,6 @@ import (
 	"net/http"
 )
 
-// @Summary Health Check
-// @Description Check the health status of the service.
-// @ID health-check
-// @Accept json
-// @Produce json
-// @Success 200
-// @Router /health [get]
 func Health(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "up"})
 }

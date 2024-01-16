@@ -18,14 +18,6 @@ func NewWalletHandler(walletService services.IWalletService) *WalletHandler {
 	}
 }
 
-// @Summary Create a Wallet
-// @Description Create a wallet for the specified user ID.
-// @ID create-wallet
-// @Accept json
-// @Produce json
-// @Param request body models.CreateWalletRequest true "Create Wallet Request"
-// @Success 200 {object} models.CreateWalletResponse "OK"
-// @Router /users/wallet [post]
 func (h *WalletHandler) CreateWallet(c *gin.Context) {
 	var request models.CreateWalletRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -48,14 +40,6 @@ func (h *WalletHandler) CreateWallet(c *gin.Context) {
 	})
 }
 
-// @Summary Get Wallet
-// @Description Get wallet details for the specified user ID.
-// @ID get-wallet
-// @Accept json
-// @Produce json
-// @Param id path string true "User ID"
-// @Success 200 {object} models.Wallet "OK"
-// @Router /users/{id}/wallet [get]
 func (h *WalletHandler) GetWallet(c *gin.Context) {
 	userID := c.Param("id")
 	wallet, err := h.walletService.GetByUserID(userID)
@@ -75,14 +59,6 @@ func (h *WalletHandler) GetWallet(c *gin.Context) {
 	c.JSON(http.StatusOK, wallet)
 }
 
-// @Summary Add Funds to Wallet
-// @Description Add funds to the wallet for the specified user ID.
-// @ID add-funds
-// @Accept json
-// @Produce json
-// @Param request body models.TransactionRequest true "Transaction Request"
-// @Success 200 {object} models.TransactionResponse "OK"
-// @Router /users/wallet/add [post]
 func (h *WalletHandler) AddFunds(c *gin.Context) {
 	var request models.TransactionRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -115,14 +91,6 @@ func (h *WalletHandler) AddFunds(c *gin.Context) {
 	})
 }
 
-// @Summary Remove Funds from Wallet
-// @Description Remove funds from the wallet for the specified user ID.
-// @ID remove-funds
-// @Accept json
-// @Produce json
-// @Param request body models.TransactionRequest true "Transaction Request"
-// @Success 200 {object} models.TransactionResponse "OK"
-// @Router /users/wallet/remove [post]
 func (h *WalletHandler) RemoveFunds(c *gin.Context) {
 	var request models.TransactionRequest
 	if err := c.ShouldBindJSON(&request); err != nil {

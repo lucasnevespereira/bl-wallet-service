@@ -35,8 +35,3 @@ INSERT INTO users (id, name)
 VALUES ('1', 'Jane'),
        ('2', 'John'),
        ('3', 'Peter');
-
--- INSERT INTO wallets (user_id, balance, currency) VALUES
---                                                      (1, 100.00, 'USD', 0),
---                                                      (2, 50.00, 'EUR', 0),
---                                                      (3, 200.00, 'GBP', 0);

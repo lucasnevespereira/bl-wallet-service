@@ -15,9 +15,10 @@ type IWalletStorage interface {
 	AutoMigrate() error
 	CreateWallet(wallet *RowWallet) error
 	GetWalletByUserID(userID string) (*RowWallet, error)
-	UpdateBalance(wallet *RowWallet, transaction *models.TransactionRequest) error
+	UpdateBalance(wallet *RowWallet, transactionID string) error
 	GetTransaction(transactionID string) (*RowTransaction, error)
 	CreateTransaction(transaction *RowTransaction) error
+	UpdateTransactionStatus(transactionID string, status string) error
 }
 
 type RowWallet struct {
@@ -94,9 +95,6 @@ func NewWalletStorage(config WalletStorageConfig) (*WalletStorage, error) {
 
 func (s *WalletStorage) CreateWallet(wallet *RowWallet) error {
 	log.Printf("Wallet to insert: %v \n", wallet)
-	if s.DB == nil {
-		log.Println("database nil")
-	}
 	err := s.DB.Create(&wallet).Error
 	if err != nil {
 		log.Println(err)
@@ -140,52 +138,75 @@ func (s *WalletStorage) CreateTransaction(transaction *RowTransaction) error {
 	})
 }
 
-func (s *WalletStorage) UpdateBalance(wallet *RowWallet, transaction *models.TransactionRequest) error {
+func (s *WalletStorage) UpdateTransactionStatus(transactionID string, status string) error {
+	return s.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("UPDATE transactions SET status = ?, updated_at = ? WHERE id = ?", status, time.Now().Format(time.RFC3339Nano), transactionID).Error; err != nil {
+			return err
+		}
+
+		log.Printf("transaction %v updated to status %s \n", transactionID, status)
+		return nil
+	})
+}
+
+func (s *WalletStorage) UpdateBalance(wallet *RowWallet, transactionID string) error {
 	log.Println("updating wallet balance")
 	return s.DB.Transaction(func(tx *gorm.DB) error {
 
+		transaction, err := s.GetTransaction(transactionID)
+		if err != nil {
+			return err
+		}
+
+		if transaction == nil {
+			return models.ErrTransactionNotFound
+		}
+
+		// check if transaction is pending
+		if transaction.Status != models.PendingTransactionStatus {
+			return models.ErrTransactionAlreadyProcessed
+		}
+
 		// locking wallet
 		var isolatedWallet *RowWallet
-		err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? and wallet_version = ?", wallet.ID, wallet.WalletVersion).Take(&isolatedWallet).Error
+		err = tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id = ? and wallet_version = ?", wallet.ID, wallet.WalletVersion).Take(&isolatedWallet).Error
 		if err != nil {
 			log.Printf("tx.Clauses locking err: %v \n", err)
 			return err
 		}
 
 		newBalance := isolatedWallet.Balance
-
 		// check transaction type
 		if transaction.TransactionType == models.CreditTransactionType {
 			newBalance += transaction.Amount
 		} else if transaction.TransactionType == models.DebitTransactionType {
-			if wallet.Balance < transaction.Amount {
-				return models.ErrInsufficientFunds
-			}
-			newBalance -= transaction.Amount
+			newBalance = isolatedWallet.Balance - transaction.Amount
+		}
+
+		if newBalance < 0 {
+			return models.ErrInsufficientFunds
 		}
 
 		newWalletVersion := isolatedWallet.WalletVersion + 1
-		if err := tx.Model(&isolatedWallet).Updates(RowWallet{Balance: newBalance, WalletVersion: newWalletVersion}).Error; err != nil {
+		// update balance
+		if err := tx.Exec("UPDATE wallets SET balance = ?, wallet_version = ? WHERE id = ?", newBalance, newWalletVersion, isolatedWallet.ID).Error; err != nil {
+			log.Printf("tx wallet update: %v\n", err)
 			return err
 		}
 
 		now := time.Now().Format(time.RFC3339Nano)
 		transactionRow := RowTransaction{
-			ID:              transaction.TransactionID,
-			UserID:          transaction.UserID,
-			WalletID:        isolatedWallet.ID,
-			Amount:          transaction.Amount,
-			TransactionType: transaction.TransactionType,
-			Status:          models.SuccessTransactionStatus,
-			CreatedAt:       now,
-			UpdatedAt:       now,
+			Status:    models.SuccessTransactionStatus,
+			UpdatedAt: now,
 		}
-		err = tx.Create(&transactionRow).Error
+
+		err = tx.Model(&RowTransaction{}).Where("id = ?", transaction.ID).Updates(&transactionRow).Error
 		if err != nil {
 			return err
 		}
 
 		log.Println("wallet balance updated")
+
 		return nil
 	})
 }

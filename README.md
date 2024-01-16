@@ -1,6 +1,6 @@
 # BL Wallet Service
 
-BlueLabs Wallet Service, is a simple service to manage a digital wallet.
+Bl Wallet Service, is a simple service to manage a digital wallet.
 
 This service provides the following features
 
@@ -23,13 +23,8 @@ Also, the service inits with some users already in database, you can use their i
 
 #### Prerequisites
 
-Before running the API, make sure you have Docker and Docker Compose installed on your machine.
-
-## Usage
-
-#### Prerequisites
-
-Before running the API, make sure you have Docker and Docker Compose installed on your machine.
+- [Docker](https://www.docker.com/get-started/) must be installed to run the service.
+- [Mockery](https://vektra.github.io/mockery/latest/installation/) used for tests.
 
 ### Running the service
 
@@ -48,9 +43,7 @@ You can also run `docker-compose down`
 
 ### Running Unit Tests
 
-To execute tests for the API, follow these steps:
-
-Run the following command:
+To execute tests for the service, run this command:
 
 ```shell
 make test
@@ -58,7 +51,11 @@ make test
 
 ### Service Documentation
 
-Once the API is running, you can access the API documentation at http://localhost:9000/swagger/index.html.
+Once the service is running, you can access a swagger documentation at http://localhost:9000/swagger/index.html.
+
+Some information regarding transactions requests:
+- There is only two transactions types either `"CREDIT"` or `DEBIT`.
+- Each new transaction needs a new transactionID, otherwise service will assume it is the same transaction.
 
 ## Service Calls and Responses
 
@@ -152,7 +149,6 @@ curl --location 'http://localhost:9000/users/wallet' \
 
 ```shell
 curl --location 'http://localhost:9000/users/wallet/add' \
---header 'x-idempotency-key: 1235' \
 --header 'Content-Type: application/json' \
 --data '{
     "transactionID": "1234568676778",

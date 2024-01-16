@@ -68,11 +68,11 @@ func (s *WalletService) Create(userID string) error {
 func (s *WalletService) ProcessTransaction(request *models.TransactionRequest) error {
 	fmt.Printf("Processing transaction of user %s \n", request.UserID)
 
-	// check if transaction exists
 	existingTransaction, err := s.storage.GetTransaction(request.TransactionID)
 	if err != nil {
 		return err
 	}
+
 	if existingTransaction != nil {
 		return models.ErrTransactionAlreadyProcessed
 	}
@@ -86,25 +86,30 @@ func (s *WalletService) ProcessTransaction(request *models.TransactionRequest) e
 		return models.ErrUserWalletNotFound
 	}
 
-	// update wallet balance
-	err = s.storage.UpdateBalance(userWallet, request)
-	if err != nil && errors.Is(err, models.ErrInsufficientFunds) {
-		// record transaction as failed
-		now := time.Now().Format(time.RFC3339Nano)
-		err = s.storage.CreateTransaction(&storage.RowTransaction{
-			ID:              request.TransactionID,
-			UserID:          request.UserID,
-			WalletID:        userWallet.ID,
-			Amount:          request.Amount,
-			TransactionType: request.TransactionType,
-			Status:          models.FailedTransactionStatus,
-			CreatedAt:       now,
-			UpdatedAt:       now,
-		})
-		if err != nil {
-			return err
+	now := time.Now().Format(time.RFC3339Nano)
+	err = s.storage.CreateTransaction(&storage.RowTransaction{
+		ID:              request.TransactionID,
+		UserID:          request.UserID,
+		WalletID:        userWallet.ID,
+		Amount:          request.Amount,
+		TransactionType: request.TransactionType,
+		Status:          models.PendingTransactionStatus,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = s.storage.UpdateBalance(userWallet, request.TransactionID)
+	if err != nil {
+		if errors.Is(err, models.ErrInsufficientFunds) {
+			updateStatusErr := s.storage.UpdateTransactionStatus(request.TransactionID, models.FailedTransactionStatus)
+			if updateStatusErr != nil {
+				return updateStatusErr
+			}
+			return models.ErrInsufficientFunds
 		}
-	} else if err != nil {
 		return err
 	}
 
